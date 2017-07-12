@@ -15,7 +15,7 @@
 #define RXPORT PINB		// Имя порта на прием
 #define TXDDR DDRB		// Регистр направления порта на передачу
 #define RXDDR DDRB		// Регистр направления порта на прием
-#define TXD 4			// Номер бита порта для использования на передачу
+#define TXD 3			// Номер бита порта для использования на передачу
 #define RXD 1			// Номер бита порта для использования на прием
 
 /*
@@ -41,6 +41,8 @@ volatile uint16_t txbyte;
 volatile uint8_t rxbyte;
 volatile uint8_t txbitcount;
 volatile uint8_t rxbitcount;
+volatile uint16_t g_servoCounter = 0;
+volatile uint16_t g_servoPos = 1;
 
 void uart_init();
 void uart_send(uint8_t tb);
@@ -70,6 +72,15 @@ void uart_init()
 
 ISR(TIM0_COMPA_vect)
 {
+    if (g_servoCounter > g_servoPos) {
+        PORTB &= ~(1 << PB2);
+    }
+    if (g_servoCounter > 50) {
+        PORTB |= (1 << PB2);
+        g_servoCounter = 0;
+    }
+    g_servoCounter++;
+
 	TXPORT = (TXPORT & ~(1 << TXD)) | ((txbyte & 0x01) << TXD); // Выставляем в бит TXD младший бит txbyte
 	txbyte = (txbyte >> 0x01) + 0x8000;	// Двигаем txbyte вправо на 1 и пишем 1 в старший разряд (0x8000)
 	if(txbitcount > 0)			// Если идет передача (счетик бит больше нуля),
@@ -140,17 +151,30 @@ int main(void)
 {
 	uint8_t b = 0;
 	uart_init();
+    // Servo
+    DDRB |= (1 << DDB2);
+    // Just light up a led
     DDRB |= (1 << DDB0);
-	uart_send('a');		// А если приняли, передаем принятое
-	uart_send('b');		// А если приняли, передаем принятое
-	uart_send('c');		// А если приняли, передаем принятое
+    PORTB |= (1 << PB0);
+    // Motor pin
+    DDRB |= (1 << DDB4);
+	uart_send('B');
+	uart_send('o');
+	uart_send('a');
+	uart_send('t');
 	while (1)
 	{
 		if(uart_recieve(&b) >= 0) {	// Если ничего не приняли, ничего и не передаем
 			uart_send(b);		// А если приняли, передаем принятое
 
             if (b == 'a')
-                PORTB ^= ~PORTB | (1 << PB0);
+                PORTB ^= ~PORTB | (1 << PB4);
+            if (b == 'l')
+                g_servoPos = 1;
+            if (b == 'c')
+                g_servoPos = 2;
+            if (b == 'r')
+                g_servoPos = 3;
         }
 	}
 	return (0);
