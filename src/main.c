@@ -33,6 +33,10 @@
 #define T_DIV		0x03	// DIV = 64
 #define BAUD_DIV	62	// Скорость = 2400 бод
 
+#define bool unsigned char
+#define true 1
+#define false 0
+
 /*
 *	Ниже идут объявления глобальных переменных и функций для работы UART
 */
@@ -43,6 +47,7 @@ volatile uint8_t txbitcount;
 volatile uint8_t rxbitcount;
 volatile uint16_t g_servoCounter = 0;
 volatile uint16_t g_servoPos = 1;
+volatile bool g_motorOn = false;
 
 void uart_init();
 void uart_send(uint8_t tb);
@@ -80,6 +85,17 @@ ISR(TIM0_COMPA_vect)
         g_servoCounter = 0;
     }
     g_servoCounter++;
+
+    static int on = 0;
+    if (g_motorOn) {
+        if (on > 2) {
+            PORTB |= (1 << PB4);
+            on = 0;
+        } else {
+            PORTB &= ~(1 << PB4);
+        }
+        on++;
+    }
 
 	TXPORT = (TXPORT & ~(1 << TXD)) | ((txbyte & 0x01) << TXD); // Выставляем в бит TXD младший бит txbyte
 	txbyte = (txbyte >> 0x01) + 0x8000;	// Двигаем txbyte вправо на 1 и пишем 1 в старший разряд (0x8000)
@@ -158,17 +174,18 @@ int main(void)
     PORTB |= (1 << PB0);
     // Motor pin
     DDRB |= (1 << DDB4);
-	uart_send('B');
-	uart_send('o');
-	uart_send('a');
-	uart_send('t');
 	while (1)
 	{
 		if(uart_recieve(&b) >= 0) {	// Если ничего не приняли, ничего и не передаем
 			uart_send(b);		// А если приняли, передаем принятое
 
-            if (b == 'a')
-                PORTB ^= ~PORTB | (1 << PB4);
+            if (b == 'b') {
+                g_motorOn = true;
+            }
+            if (b == 'e') {
+                g_motorOn = false;
+                PORTB &= ~(1 << PB4);
+            }
             if (b == 'l')
                 g_servoPos = 1;
             if (b == 'c')
