@@ -29,9 +29,10 @@
 */
 
 //#define T_DIV		0x01	// DIV = 1
-//#define T_DIV		0x02	// DIV = 8
-#define T_DIV		0x03	// DIV = 64
-#define BAUD_DIV	62	// Скорость = 2400 бод
+#define T_DIV		0x02	// DIV = 8
+//#define T_DIV		0x03	// DIV = 64
+//#define BAUD_DIV	62	// Скорость = 2400 бод
+#define BAUD_DIV	125	// Скорость = 9600 бод
 
 #define bool unsigned char
 #define true 1
@@ -75,26 +76,28 @@ void uart_init()
 	sei();				// Разрешаем прерывания глобально
 }
 
+uint16_t pwmCounter = 0;
+
 ISR(TIM0_COMPA_vect)
 {
     if (g_servoCounter > g_servoPos) {
         PORTB &= ~(1 << PB2);
     }
-    if (g_servoCounter > 50) {
+    if (g_servoCounter > 200) {
         PORTB |= (1 << PB2);
         g_servoCounter = 0;
     }
     g_servoCounter++;
 
-    static int on = 0;
     if (g_motorOn) {
-        if (on > 2) {
-            PORTB |= (1 << PB4);
-            on = 0;
-        } else {
-            PORTB &= ~(1 << PB4);
-        }
-        on++;
+//        if (pwmCounter > 2) {
+//            PORTB |= (1 << PB4);
+//        } else {
+//            PORTB &= ~(1 << PB4);
+//        }
+//        pwmCounter--;
+//        if (pwmCounter == 0)
+//            pwmCounter = 3;
     }
 
 	TXPORT = (TXPORT & ~(1 << TXD)) | ((txbyte & 0x01) << TXD); // Выставляем в бит TXD младший бит txbyte
@@ -174,6 +177,7 @@ int main(void)
     PORTB |= (1 << PB0);
     // Motor pin
     DDRB |= (1 << DDB4);
+    g_servoPos = 8;
 	while (1)
 	{
 		if(uart_recieve(&b) >= 0) {	// Если ничего не приняли, ничего и не передаем
@@ -181,17 +185,21 @@ int main(void)
 
             if (b == 'b') {
                 g_motorOn = true;
+                pwmCounter = UINT16_MAX;
+                PORTB &= ~(1 << PB4);
+                PORTB &= ~(1 << PB0);
             }
             if (b == 'e') {
                 g_motorOn = false;
-                PORTB &= ~(1 << PB4);
+            	PORTB |= (1 << PB4);
+    		    PORTB |= (1 << PB0);
             }
             if (b == 'l')
-                g_servoPos = 1;
+                g_servoPos = 4;
             if (b == 'c')
-                g_servoPos = 2;
+                g_servoPos = 8;
             if (b == 'r')
-                g_servoPos = 3;
+                g_servoPos = 12;
         }
 	}
 	return (0);
