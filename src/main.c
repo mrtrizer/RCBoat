@@ -177,6 +177,7 @@ int main(void)
     PORTB |= (1 << PB0);
     // Motor pin
     DDRB |= (1 << DDB4);
+    PORTB |= (1 << PB4);
     g_servoPos = 8;
 	while (1)
 	{
